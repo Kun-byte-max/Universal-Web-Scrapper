@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Web-to-JSON Scraper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="navbar">
+            <div class="logo">
+                <div class="logo-icon">🌐</div>
+                <div class="logo-text">
+                    <h1>Universal Scraper</h1>
+                    <span>Website-to-JSON Engine</span>
+                </div>
+            </div>
+            <div class="badge">Local AI-Free Engine v1.0</div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="main-layout">
+            <!-- Left Panel: Form & Controls -->
+            <section class="card config-card">
+                <h2>Scrape Settings</h2>
+                <form id="scrape-form">
+                    <div class="form-group">
+                        <label for="url">Website URL <span class="required">*</span></label>
+                        <input type="url" id="url" name="url" placeholder="https://example.com/products" required autocomplete="off">
+                        <small>Supports catalogs, e-commerce, articles, & listings</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="crawl-mode">Crawl Mode</label>
+                        <select id="crawl-mode" name="mode" class="form-control">
+                            <option value="auto" selected>Auto (Full-Site Discovery)</option>
+                            <option value="bounded">Bounded (Custom Limits)</option>
+                        </select>
+                        <small id="mode-hint">Automatically crawls entire website until queue is exhausted</small>
+                    </div>
+
+                    <div class="form-row" id="bounded-options" style="display: none;">
+                        <div class="form-group">
+                            <label for="max-pages">Max Pages</label>
+                            <input type="number" id="max-pages" name="max_pages" placeholder="e.g. 5" min="1" max="1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-records">Max Records</label>
+                            <input type="number" id="max-records" name="max_records" placeholder="e.g. 50" min="1" max="5000">
+                        </div>
+                    </div>
+
+                    <div class="form-group toggle-group">
+                        <label class="switch">
+                            <input type="checkbox" id="use-browser">
+                            <span class="slider"></span>
+                        </label>
+                        <div class="toggle-label">
+                            <strong>JS Browser Fallback (Playwright)</strong>
+                            <small>Renders dynamic client-side JS websites</small>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" id="start-btn" class="btn btn-primary">
+                            <span class="btn-icon">⚡</span> Start Scraping
+                        </button>
+                        <button type="button" id="clear-btn" class="btn btn-secondary">
+                            Clear Results
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Status & Progress Section -->
+                <div id="progress-container" class="progress-container hidden">
+                    <div class="progress-header">
+                        <span id="status-message">Initializing...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div id="progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Stats Panel -->
+                <div class="stats-panel">
+                    <div class="stat-box">
+                        <span class="stat-value" id="stat-pages">0</span>
+                        <span class="stat-label">Pages Visited</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="stat-records">0</span>
+                        <span class="stat-label">Records Extracted</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="stat-duration">0s</span>
+                        <span class="stat-label">Duration</span>
+                    </div>
+                </div>
+
+                <!-- Error Box -->
+                <div id="error-box" class="error-box hidden">
+                    <div class="error-title">⚠️ Scraping Error</div>
+                    <div id="error-message"></div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Data Preview & Export -->
+            <section class="card results-card">
+                <div class="results-header">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="table-tab" id="tab-table-btn">📊 Products Preview</button>
+                        <button class="tab-btn" data-tab="pages-tab" id="tab-pages-btn">📄 Visited Pages Preview</button>
+                        <button class="tab-btn" data-tab="inventory-tab" id="tab-inventory-btn">🗺️ URL Inventory & Coverage</button>
+                        <button class="tab-btn" data-tab="json-tab" id="tab-json-btn">CODE JSON Output</button>
+                    </div>
+                    <div class="action-buttons export-group">
+                        <button id="download-btn" class="btn btn-primary" disabled title="Download extracted products JSON">
+                            🛒 Download Products JSON
+                        </button>
+                        <button id="download-bundle-btn" class="btn btn-success" disabled title="Download complete ZIP bundle containing all crawl artifacts">
+                            📦 Download ZIP Bundle
+                        </button>
+                        <div class="dropdown">
+                            <button id="export-dropdown-btn" type="button" class="btn btn-secondary dropdown-toggle" disabled>
+                                More Artifacts ▼
+                            </button>
+                            <div id="export-menu" class="dropdown-menu hidden">
+                                <button type="button" class="dropdown-item" id="download-inventory-btn">
+                                    🗺️ Download URL Inventory
+                                </button>
+                                <button type="button" class="dropdown-item" id="download-pages-btn">
+                                    📄 Download Pages JSON
+                                </button>
+                                <button type="button" class="dropdown-item" id="download-report-btn">
+                                    📊 Download Extraction Report
+                                </button>
+                                <button type="button" class="dropdown-item" id="download-sitemap-btn">
+                                    🗺️ Download Sitemap Inventory
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 1: Products Table -->
+                <div id="table-tab" class="tab-content active">
+                    <div class="table-wrapper">
+                        <table id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Image</th>
+                                    <th>Title & Evidence</th>
+                                    <th>Price</th>
+                                    <th>Brand / SKU</th>
+                                    <th>Link</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                                <tr>
+                                    <td colspan="6" class="empty-state">
+                                        No data extracted yet. Enter a URL and click "Start Scraping".
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Visited Pages Preview -->
+                <div id="pages-tab" class="tab-content">
+                    <div class="pages-header">
+                        <div class="pages-header-left">
+                            <span id="pages-count-label">Visited Pages Inventory (0)</span>
+                            <span class="pages-header-hint">Full structured content with complete sections, lists, images, & downloads</span>
+                        </div>
+                        <div class="pages-header-actions">
+                            <button type="button" id="toggle-all-sections-btn" class="btn btn-small" title="Expand or collapse all section details">
+                                📑 Expand All Sections
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pages-wrapper" id="pages-wrapper">
+                        <div class="empty-state">
+                            No visited pages data yet. Crawl pages will appear here upon completion.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: URL Inventory & Coverage -->
+                <div id="inventory-tab" class="tab-content">
+                    <div class="inventory-section">
+                        <!-- Coverage Metrics Grid -->
+                        <div class="coverage-metrics-header">
+                            <h3>Coverage Diagnostics</h3>
+                            <span id="coverage-stop-reason" class="coverage-badge">Stop Reason: Ready</span>
+                        </div>
+                        <div class="inventory-stats-grid">
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val" id="inv-stat-discovered">0</span>
+                                <span class="inv-metric-lbl">Discovered URLs</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val" id="inv-stat-attempted">0</span>
+                                <span class="inv-metric-lbl">Attempted URLs</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val status-crawled-text" id="inv-stat-crawled">0</span>
+                                <span class="inv-metric-lbl">Fetched Pages</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val status-failed-text" id="inv-stat-failed">0</span>
+                                <span class="inv-metric-lbl">Failed URLs</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val status-skipped-text" id="inv-stat-skipped">0</span>
+                                <span class="inv-metric-lbl">Skipped URLs</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val status-pending-text" id="inv-stat-unattempted">0</span>
+                                <span class="inv-metric-lbl">Unattempted URLs</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val rate-text" id="inv-stat-fetch-rate">0%</span>
+                                <span class="inv-metric-lbl">Fetch Success Rate</span>
+                            </div>
+                            <div class="inv-metric-card">
+                                <span class="inv-metric-val rate-text" id="inv-stat-extract-rate">0%</span>
+                                <span class="inv-metric-lbl">Content Extraction Rate</span>
+                            </div>
+                        </div>
+
+                        <!-- Coverage Warnings Box -->
+                        <div id="coverage-warnings-box" class="coverage-warnings-box hidden">
+                            <div class="coverage-warnings-title">Diagnostics & Warnings</div>
+                            <ul id="coverage-warnings-list"></ul>
+                        </div>
+
+                        <!-- Inventory Table Controls -->
+                        <div class="inventory-toolbar">
+                            <div class="inventory-filter-group">
+                                <label for="inv-status-filter">Filter Status:</label>
+                                <select id="inv-status-filter" class="form-control-small">
+                                    <option value="">All Statuses</option>
+                                    <option value="crawled">crawled</option>
+                                    <option value="failed">failed</option>
+                                    <option value="skipped">skipped</option>
+                                    <option value="pending">pending</option>
+                                    <option value="discovered">discovered</option>
+                                </select>
+                            </div>
+                            <div class="inventory-pagination-group">
+                                <button type="button" id="inv-prev-btn" class="btn btn-small" disabled>◀ Prev</button>
+                                <span id="inv-page-info">Page 1 of 1</span>
+                                <button type="button" id="inv-next-btn" class="btn btn-small" disabled>Next ▶</button>
+                            </div>
+                        </div>
+
+                        <!-- Inventory Table -->
+                        <div class="table-wrapper">
+                            <table id="inventory-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>URL</th>
+                                        <th>Status</th>
+                                        <th>Reason</th>
+                                        <th>HTTP</th>
+                                        <th>Discovery</th>
+                                        <th>Outcome</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-body">
+                                    <tr>
+                                        <td colspan="7" class="empty-state">
+                                            No inventory records yet. Run a crawl job to view URL diagnostics.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: JSON Code Block -->
+                <div id="json-tab" class="tab-content">
+                    <div class="json-header">
+                        <div class="json-header-left">
+                            <label for="json-dataset-select"><strong>Dataset:</strong></label>
+                            <select id="json-dataset-select" class="form-control-small">
+                                <option value="products" selected>🛒 Products Catalog (products.json)</option>
+                                <option value="pages">📄 Complete Page Content (website_pages.json)</option>
+                                <option value="inventory">🗺️ URL Inventory (url_inventory.json)</option>
+                            </select>
+                            <span id="json-size-label" class="json-size-badge">0 items</span>
+                        </div>
+                        <div class="json-header-actions">
+                            <button id="copy-json-btn" class="btn btn-small">Copy to Clipboard</button>
+                        </div>
+                    </div>
+                    <pre><code id="json-preview">[ ]</code></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
