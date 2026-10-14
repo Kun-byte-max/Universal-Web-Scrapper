@@ -29,6 +29,10 @@ jobs.json
 # Environment secrets
 .env
 
+# Scratch scripts & Tests
+scratch/
+tests/
+
 # IDEs
 .vscode/
 .idea/
